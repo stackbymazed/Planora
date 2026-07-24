@@ -1,0 +1,129 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum EventType {
+  PUBLIC
+  PRIVATE
+}
+
+enum ParticipantStatus {
+  PENDING
+  APPROVED
+  BANNED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  password     String
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  ownedEvents  Event[]       @relation("EventOwner")
+  participants Participant[]
+  invitations  Invitation[]
+  reviews      Review[]
+  payments     Payment[]
+}
+
+model Event {
+  id              String        @id @default(uuid())
+  title           String
+  description     String
+  date            DateTime
+  time            String
+  venue           String
+  type            EventType     @default(PUBLIC)
+  registrationFee Float         @default(0.0)
+  ownerId         String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  owner           User          @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  participants    Participant[]
+  invitations     Invitation[]
+  reviews         Review[]
+  payments        Payment[]
+}
+
+model Participant {
+  id        String            @id @default(uuid())
+  eventId   String
+  userId    String
+  status    ParticipantStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Invitation {
+  id        String           @id @default(uuid())
+  eventId   String
+  inviteeId String
+  status    InvitationStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  invitee   User             @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, inviteeId])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  eventId       String
+  userId        String
+  amount        Float
+  transactionId String        @unique
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
